@@ -22,14 +22,20 @@ async function initializeConnection() {
         showLobbyStatus(`Room ${roomId} created! Waiting for players...`);
     });
 
-    connection.on("PlayerJoined", (playerName) => {
-        console.log("Player joined:", playerName);
-        showLobbyStatus(`${playerName} joined the room!`);
+    connection.on("PlayerJoined", (playerName, playerCount) => {
+        console.log("Player joined:", playerName, "Total players:", playerCount);
+        updateLobbyStatus(playerCount);
     });
 
     connection.on("GameStateUpdated", (state) => {
         console.log("Game state updated:", state);
         gameState = state;
+        
+        // Update lobby status if still in lobby
+        if (state.state === 0) { // GameState.Lobby
+            updateLobbyStatus(state.players.length);
+        }
+        
         updateGameDisplay();
     });
 
@@ -80,6 +86,23 @@ async function initializeConnection() {
 }
 
 // UI Functions
+function updateLobbyStatus(playerCount) {
+    const playersNeeded = 3;
+    const remaining = Math.max(0, playersNeeded - playerCount);
+    
+    let message = `<p>Players in room: ${playerCount}</p>`;
+    
+    if (playerCount < playersNeeded) {
+        message += `<p>Waiting for ${remaining} more player${remaining !== 1 ? 's' : ''}...</p>`;
+        document.getElementById('startGameBtn').disabled = true;
+    } else {
+        message += `<p>Ready to start!</p>`;
+        document.getElementById('startGameBtn').disabled = false;
+    }
+    
+    document.getElementById('lobbyStatus').innerHTML = message;
+}
+
 function showLobbyStatus(message) {
     document.getElementById('lobbyStatus').innerHTML = `<p>${message}</p>`;
 }
@@ -115,10 +138,7 @@ async function joinRoom() {
 
     try {
         await connection.invoke("JoinRoom", roomId, playerName);
-        showLobbyStatus(`Joined room ${roomId}! Waiting for game to start...`);
-        
-        // Enable the Start Game button after joining
-        document.getElementById('startGameBtn').disabled = false;
+        // The PlayerJoined event will handle updating the lobby status and button
     } catch (err) {
         console.error("Error joining room:", err);
         showError("Failed to join room");
