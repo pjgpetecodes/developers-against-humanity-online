@@ -87,6 +87,22 @@ az deployment group create \
 git push origin main
 ```
 
+## 🐳 Docker Deployment (Alternative)
+
+You can also deploy using Docker:
+
+```bash
+# Build the image
+docker build -t developers-against-humanity .
+
+# Run locally
+docker run -p 8080:80 developers-against-humanity
+
+# Push to container registry
+docker tag developers-against-humanity your-registry/developers-against-humanity
+docker push your-registry/developers-against-humanity
+```
+
 ## 🏗️ Architecture
 
 - **ASP.NET Core 8.0**: Web framework

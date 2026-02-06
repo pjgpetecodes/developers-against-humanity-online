@@ -36,7 +36,9 @@ public class CardService : ICardService
                 {
                     if (!string.IsNullOrWhiteSpace(line))
                     {
-                        var pickCount = line.Count(c => c == '_') / 5; // Count blank spaces (5 underscores each)
+                        // Count the number of blanks by finding groups of underscores
+                        // Each blank is represented by one or more consecutive underscores
+                        var pickCount = System.Text.RegularExpressions.Regex.Matches(line, "_+").Count;
                         _blackCards.Add(new BlackCard
                         {
                             Text = line.Trim(),
