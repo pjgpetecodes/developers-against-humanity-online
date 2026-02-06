@@ -223,7 +223,7 @@ async function leaveRoom() {
         console.log("Reconnected after leaving room");
     } catch (err) {
         console.error("Error reconnecting:", err);
-        showError("Please refresh the page");
+        showError("Failed to reconnect. Please refresh the page to continue.");
     }
 }
 
