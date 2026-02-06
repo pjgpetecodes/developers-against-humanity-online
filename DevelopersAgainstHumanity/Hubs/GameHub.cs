@@ -156,12 +156,43 @@ public class GameHub : Hub
         }
     }
 
+    public async Task LeaveRoom(string roomId)
+    {
+        try
+        {
+            var room = _gameService.GetRoom(roomId);
+            if (room != null)
+            {
+                var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
+                if (player != null)
+                {
+                    _gameService.RemovePlayer(roomId, Context.ConnectionId);
+                    
+                    // Notify remaining players
+                    var playerNames = room.Players.Where(p => p.ConnectionId != Context.ConnectionId).Select(p => p.Name).ToList();
+                    var newPlayerCount = room.Players.Count - 1;
+                    
+                    await Clients.Group(roomId).SendAsync("PlayerLeft", player.Name, newPlayerCount, playerNames);
+                    await Clients.Group(roomId).SendAsync("GameStateUpdated", room);
+                    
+                    // Remove from group
+                    await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomId);
+                    
+                    _logger.LogInformation($"Player {player.Name} left room {roomId}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error leaving room");
+            await Clients.Caller.SendAsync("Error", ex.Message);
+        }
+    }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         try
         {
-            // Find and remove player from all rooms
-            // This is a simplified implementation - in production you'd track room membership
             _logger.LogInformation($"Player {Context.ConnectionId} disconnected");
         }
         catch (Exception ex)

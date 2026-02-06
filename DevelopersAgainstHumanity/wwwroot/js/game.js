@@ -32,6 +32,12 @@ async function initializeConnection() {
         updateLobbyStatus(playerCount, playerNames);
     });
 
+    connection.on("PlayerLeft", (playerName, playerCount, playerNames) => {
+        console.log("Player left:", playerName, "Total players:", playerCount);
+        showPlayerLeftMessage(playerName);
+        updateLobbyStatus(playerCount, playerNames);
+    });
+
     connection.on("GameStateUpdated", (state) => {
         console.log("Game state updated:", state);
         gameState = state;
@@ -142,6 +148,23 @@ function showPlayerJoinedMessage(playerName) {
     }, 3000);
 }
 
+function showPlayerLeftMessage(playerName) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'player-join-notification';
+    messageDiv.style.background = 'rgba(220, 53, 69, 0.3)';
+    messageDiv.style.borderLeftColor = '#dc3545';
+    messageDiv.textContent = `${playerName} left the room!`;
+    
+    const lobbyStatus = document.getElementById('lobbyStatus');
+    lobbyStatus.prepend(messageDiv);
+    
+    // Remove the message after 3 seconds
+    setTimeout(() => {
+        messageDiv.classList.add('fade-out');
+        setTimeout(() => messageDiv.remove(), 500);
+    }, 3000);
+}
+
 function showStatus(message) {
     document.getElementById('statusMessage').textContent = message;
 }
@@ -198,6 +221,17 @@ function enableJoinControls() {
 }
 
 async function leaveRoom() {
+    const roomIdToLeave = currentRoomId;
+    
+    try {
+        // Notify server that this player is leaving
+        if (roomIdToLeave) {
+            await connection.invoke("LeaveRoom", roomIdToLeave);
+        }
+    } catch (err) {
+        console.error("Error notifying server of room leave:", err);
+    }
+    
     // Reset state
     hasJoinedRoom = false;
     currentRoomId = '';
@@ -216,15 +250,7 @@ async function leaveRoom() {
     document.getElementById('lobbyStatus').innerHTML = '';
     document.getElementById('startGameBtn').disabled = true;
     
-    // Reconnect to clear server-side state
-    try {
-        await connection.stop();
-        await connection.start();
-        console.log("Reconnected after leaving room");
-    } catch (err) {
-        console.error("Error reconnecting:", err);
-        showError("Failed to reconnect. Please refresh the page to continue.");
-    }
+    console.log("Left room");
 }
 
 async function startGame() {
