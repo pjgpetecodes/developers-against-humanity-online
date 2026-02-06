@@ -369,3 +369,17 @@ The bug that's been there for years
 Known issues
 Won't fix
 Working as intended
+The VDI is down
+Cloud Desk isn't responding
+Too many Teams calls
+Meetings during lunch
+Meetings at 4:30pm on a Friday
+The business won't listen
+I had to work during the call
+I wasn't listening to the conversation
+I've not had time to go to the toilet
+My calendar is already full of calls
+Drinking beer during calls
+Our backlog is full
+That's not our definition of done
+The acceptance criteria suck
