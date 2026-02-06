@@ -25,9 +25,10 @@ async function initializeConnection() {
         showLobbyStatus(`Room ${roomId} created! Waiting for players...`);
     });
 
-    connection.on("PlayerJoined", (playerName, playerCount) => {
+    connection.on("PlayerJoined", (playerName, playerCount, playerNames) => {
         console.log("Player joined:", playerName, "Total players:", playerCount);
-        updateLobbyStatus(playerCount);
+        showPlayerJoinedMessage(playerName);
+        updateLobbyStatus(playerCount, playerNames);
     });
 
     connection.on("GameStateUpdated", (state) => {
@@ -36,7 +37,8 @@ async function initializeConnection() {
         
         // Update lobby status if still in lobby
         if (state.state === 0) { // GameState.Lobby
-            updateLobbyStatus(state.players.length);
+            const playerNames = state.players.map(p => p.name);
+            updateLobbyStatus(state.players.length, playerNames);
         }
         
         updateGameDisplay();
@@ -89,10 +91,19 @@ async function initializeConnection() {
 }
 
 // UI Functions
-function updateLobbyStatus(playerCount) {
+function updateLobbyStatus(playerCount, playerNames) {
     const remaining = Math.max(0, MIN_PLAYERS_TO_START - playerCount);
     
-    let message = `<p>Players in room: ${playerCount}</p>`;
+    let message = `<p><strong>Players in room: ${playerCount}</strong></p>`;
+    
+    // Show list of player names
+    if (playerNames && playerNames.length > 0) {
+        message += '<ul class="lobby-player-list">';
+        playerNames.forEach(name => {
+            message += `<li>👤 ${name}</li>`;
+        });
+        message += '</ul>';
+    }
     
     const startGameBtn = document.getElementById('startGameBtn');
     if (!startGameBtn) {
@@ -104,7 +115,7 @@ function updateLobbyStatus(playerCount) {
         message += `<p>Waiting for ${remaining} more player${remaining !== 1 ? 's' : ''}...</p>`;
         startGameBtn.disabled = true;
     } else {
-        message += `<p>Ready to start!</p>`;
+        message += `<p class="ready-status">Ready to start!</p>`;
         startGameBtn.disabled = false;
     }
     
@@ -113,6 +124,21 @@ function updateLobbyStatus(playerCount) {
 
 function showLobbyStatus(message) {
     document.getElementById('lobbyStatus').innerHTML = `<p>${message}</p>`;
+}
+
+function showPlayerJoinedMessage(playerName) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'player-join-notification';
+    messageDiv.textContent = `${playerName} joined the room!`;
+    
+    const lobbyStatus = document.getElementById('lobbyStatus');
+    lobbyStatus.prepend(messageDiv);
+    
+    // Remove the message after 3 seconds
+    setTimeout(() => {
+        messageDiv.classList.add('fade-out');
+        setTimeout(() => messageDiv.remove(), 500);
+    }, 3000);
 }
 
 function showStatus(message) {
