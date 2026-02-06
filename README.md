@@ -49,17 +49,15 @@ dotnet run
 
 ### Deploy to Azure
 
-**Prerequisites**: An Azure subscription (get a [free account](https://azure.microsoft.com/free/) with $200 credit)
+**Have an Azure subscription?** → Start here: **[What you need to deploy](AZURE-DEPLOY-SUMMARY.md)**
 
-**Quick deploy**: See [QUICKSTART.md](QUICKSTART.md) for step-by-step instructions
+**TL;DR**: 
+- Prerequisites: Azure subscription + Azure CLI
+- Deploy: 3 commands, ~5 minutes
+- Cost: ~$13/month or free with Azure credits
 
-**Summary**:
-1. Login to Azure CLI and create a resource group
-2. Deploy infrastructure with Bicep (creates Web App, App Insights, etc.)
-3. Configure GitHub Actions or deploy directly with Azure CLI
-4. Your game is live!
-
-**Full details**: See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive deployment guide
+**Step-by-step guide**: [QUICKSTART.md](QUICKSTART.md)  
+**Detailed reference**: [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ## ☁️ Azure Deployment Details
 
