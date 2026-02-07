@@ -13,6 +13,9 @@ let gameState = null;
 let roundNumber = 1;
 let totalRounds = 7;
 let hasJoinedRoom = false;
+let hasPromptedRounds = false;
+let currentPlayerName = '';
+let joinedViaLink = false;
 
 // Constants
 const MIN_PLAYERS_TO_START = 3;
@@ -34,12 +37,14 @@ async function initializeConnection() {
         console.log("Player joined:", playerName, "Total players:", playerCount);
         showPlayerJoinedMessage(playerName);
         updateLobbyStatus(playerCount, playerNames);
+        updateWelcomeHeader();
     });
 
     connection.on("PlayerLeft", (playerName, playerCount, playerNames) => {
         console.log("Player left:", playerName, "Total players:", playerCount);
         showPlayerLeftMessage(playerName);
         updateLobbyStatus(playerCount, playerNames);
+        updateWelcomeHeader();
     });
 
     connection.on("GameStateUpdated", (state) => {
@@ -57,9 +62,11 @@ async function initializeConnection() {
         if (state.creatorConnectionId) {
             roomCreatorId = state.creatorConnectionId;
             showRoundsSelector();
+            updateShareLink();
         }
 
         updateRoundDisplay();
+        updateWelcomeHeader();
         
         // Update lobby status if still in lobby
         if (state.state === 0) { // GameState.Lobby
@@ -224,6 +231,7 @@ async function joinRoom() {
     }
 
     currentRoomId = roomId;
+    currentPlayerName = playerName;
     document.getElementById('roomIdDisplay').textContent = roomId;
 
     try {
@@ -231,6 +239,7 @@ async function joinRoom() {
         // Mark as joined and disable controls
         hasJoinedRoom = true;
         disableJoinControls();
+        updateWelcomeHeader();
         // The PlayerJoined event will handle updating the lobby status and button
     } catch (err) {
         console.error("Error joining room:", err);
@@ -239,33 +248,56 @@ async function joinRoom() {
 }
 
 function disableJoinControls() {
-    document.getElementById('playerName').disabled = true;
-    document.getElementById('roomId').disabled = true;
-    document.getElementById('joinRoomBtn').disabled = true;
+    document.getElementById('playerName').parentElement.classList.add('hidden');
+    document.getElementById('roomId').parentElement.classList.add('hidden');
+    document.getElementById('joinRoomBtn').classList.add('hidden');
     document.getElementById('leaveRoomBtn').classList.remove('hidden');
 }
 
 function enableJoinControls() {
-    document.getElementById('playerName').disabled = false;
-    document.getElementById('roomId').disabled = false;
-    document.getElementById('joinRoomBtn').disabled = false;
+    document.getElementById('playerName').parentElement.classList.remove('hidden');
+    document.getElementById('roomId').parentElement.classList.remove('hidden');
+    document.getElementById('joinRoomBtn').classList.remove('hidden');
     document.getElementById('leaveRoomBtn').classList.add('hidden');
 }
 
 function showRoundsSelector() {
     const selector = document.getElementById('roundsSelector');
-    const lobbyRoundsInput = document.getElementById('lobbyRounds');
-    
-    if (currentConnectionId === roomCreatorId && gameState?.state === 0) {
+    const roundsInfoValue = document.getElementById('roundsInfoValue');
+
+    if (gameState?.state === 0) {
         selector.classList.remove('hidden');
-        lobbyRoundsInput.value = totalRounds;
+        roundsInfoValue.textContent = totalRounds;
     } else {
         selector.classList.add('hidden');
     }
+
+    if (currentConnectionId === roomCreatorId && gameState?.state === 0 && !hasPromptedRounds) {
+        openRoundsModal();
+    } else if (currentConnectionId !== roomCreatorId) {
+        closeRoundsModal();
+    }
 }
 
-async function setRounds() {
-    const roundsInput = document.getElementById('lobbyRounds');
+function openRoundsModal() {
+    const modal = document.getElementById('roundsModal');
+    const input = document.getElementById('roundsModalInput');
+
+    if (!modal || !input) return;
+
+    modal.classList.remove('hidden');
+    input.value = totalRounds;
+    input.focus();
+}
+
+function closeRoundsModal() {
+    const modal = document.getElementById('roundsModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+}
+
+async function confirmRounds() {
+    const roundsInput = document.getElementById('roundsModalInput');
     const rounds = parseInt(roundsInput.value, 10);
 
     if (Number.isNaN(rounds) || rounds < 1) {
@@ -273,8 +305,17 @@ async function setRounds() {
         return;
     }
 
+    await setRounds(rounds);
+}
+
+async function setRounds(rounds) {
     try {
         await connection.invoke("UpdateRounds", currentRoomId, rounds);
+        totalRounds = rounds;
+        hasPromptedRounds = true;
+        closeRoundsModal();
+        showRoundsSelector();
+        updateRoundDisplay();
     } catch (err) {
         console.error("Error setting rounds:", err);
         showError(err.message || "Failed to set rounds");
@@ -296,6 +337,7 @@ async function leaveRoom() {
     // Reset state
     hasJoinedRoom = false;
     currentRoomId = '';
+    currentPlayerName = '';
     roomCreatorId = '';
     currentPlayer = {
         hand: [],
@@ -306,17 +348,23 @@ async function leaveRoom() {
     gameState = null;
     roundNumber = 1;
     totalRounds = 7;
+    hasPromptedRounds = false;
     updateRoundDisplay();
     
-    // Hide rounds selector
+    // Hide rounds selector and modal
     document.getElementById('roundsSelector').classList.add('hidden');
+    document.getElementById('shareLinkSection').classList.add('hidden');
+    closeRoundsModal();
     
     // Re-enable controls
-    enableJoinControls();
+    if (!joinedViaLink) {
+        enableJoinControls();
+    }
     
-    // Clear lobby status
+    // Clear lobby status and welcome header
     document.getElementById('lobbyStatus').innerHTML = '';
     document.getElementById('startGameBtn').disabled = true;
+    updateWelcomeHeader();
     
     console.log("Left room");
 }
@@ -698,4 +746,112 @@ function hideGameOver() {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     initializeConnection();
+    checkUrlForRoom();
 });
+
+function checkUrlForRoom() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomId = urlParams.get('room');
+    
+    if (roomId) {
+        joinedViaLink = true;
+        document.getElementById('roomId').value = roomId;
+        document.getElementById('playerName').parentElement.classList.add('hidden');
+        document.getElementById('roomId').parentElement.classList.add('hidden');
+        document.getElementById('joinRoomBtn').classList.add('hidden');
+        showNameEntryModal(roomId);
+    }
+}
+
+function showNameEntryModal(roomId) {
+    const modal = document.getElementById('nameEntryModal');
+    const input = document.getElementById('modalPlayerName');
+    if (modal && input) {
+        modal.classList.remove('hidden');
+        input.focus();
+        
+        // Allow Enter key to submit
+        input.onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                confirmNameEntry();
+            }
+        };
+    }
+}
+
+function closeNameEntryModal() {
+    const modal = document.getElementById('nameEntryModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+async function confirmNameEntry() {
+    const nameInput = document.getElementById('modalPlayerName');
+    const roomInput = document.getElementById('roomId');
+    const playerName = nameInput.value.trim();
+    const roomId = roomInput.value.trim();
+    
+    if (!playerName) {
+        showError("Please enter your name");
+        return;
+    }
+    
+    if (!roomId) {
+        showError("Room ID not found");
+        return;
+    }
+    
+    currentPlayerName = playerName;
+    document.getElementById('playerName').value = playerName;
+    closeNameEntryModal();
+    await joinRoom();
+}
+
+function copyShareLink() {
+    const input = document.getElementById('shareLinkInput');
+    const button = event.target;
+    
+    if (input) {
+        input.select();
+        input.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(input.value).then(() => {
+            button.textContent = 'Copied!';
+            button.classList.add('copied');
+            setTimeout(() => {
+                button.textContent = 'Copy Link';
+                button.classList.remove('copied');
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showError('Failed to copy link');
+        });
+    }
+}
+
+function updateShareLink() {
+    const shareLinkSection = document.getElementById('shareLinkSection');
+    const shareLinkInput = document.getElementById('shareLinkInput');
+    
+    if (currentConnectionId === roomCreatorId && currentRoomId && gameState?.state === 0) {
+        const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+        shareLinkInput.value = shareUrl;
+        shareLinkSection.classList.remove('hidden');
+    } else {
+        shareLinkSection.classList.add('hidden');
+    }
+}
+
+function updateWelcomeHeader() {
+    const welcomeHeader = document.getElementById('welcomeHeader');
+    
+    if (hasJoinedRoom && currentRoomId) {
+        const playerCount = gameState?.players?.length || 0;
+        const playerNameToShow = currentPlayerName || document.getElementById('playerName').value.trim();
+        
+        welcomeHeader.innerHTML = `Welcome <strong>${playerNameToShow}</strong> to Room <strong>${currentRoomId}</strong> | Players in room: <strong>${playerCount}</strong>`;
+        welcomeHeader.classList.remove('hidden');
+    } else {
+        welcomeHeader.classList.add('hidden');
+    }
+}
