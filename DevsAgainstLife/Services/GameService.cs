@@ -77,6 +77,9 @@ public class GameService : IGameService
         if (room == null)
             throw new InvalidOperationException($"Room {roomId} not found");
 
+        if (room.State != GameState.Lobby)
+            throw new InvalidOperationException("Cannot join: Game has already started");
+
         if (room.Players.Count >= room.MaxPlayers)
             throw new InvalidOperationException("Room is full");
 
