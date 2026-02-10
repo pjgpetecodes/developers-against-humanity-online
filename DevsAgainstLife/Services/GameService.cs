@@ -77,14 +77,34 @@ public class GameService : IGameService
         if (room == null)
             throw new InvalidOperationException($"Room {roomId} not found");
 
+        if (room.Players.Any(p => p.ConnectionId == connectionId))
+            throw new InvalidOperationException("Player already in room");
+
+        // Check if player with this name already exists
+        var existingPlayer = room.Players.FirstOrDefault(p => p.Name == playerName);
+        if (existingPlayer != null)
+        {
+            // If it's a different connection ID, check if it's a valid reconnect
+            if (existingPlayer.ConnectionId != connectionId)
+            {
+                // Only allow reconnect if game is in progress
+                if (room.State == GameState.Lobby)
+                    throw new InvalidOperationException("Name already taken");
+                
+                // Game in progress - allow reconnect
+                existingPlayer.ConnectionId = connectionId;
+                MarkActivity(room);
+                _logger.LogInformation($"Player {playerName} reconnected to room {roomId}");
+                return existingPlayer;
+            }
+        }
+
+        // New player trying to join
         if (room.State != GameState.Lobby)
             throw new InvalidOperationException("Cannot join: Game has already started");
 
         if (room.Players.Count >= room.MaxPlayers)
             throw new InvalidOperationException("Room is full");
-
-        if (room.Players.Any(p => p.ConnectionId == connectionId))
-            throw new InvalidOperationException("Player already in room");
 
         // First player to join is the room creator
         if (room.CreatorConnectionId == null)

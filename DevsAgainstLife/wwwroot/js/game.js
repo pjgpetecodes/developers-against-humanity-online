@@ -114,6 +114,32 @@ async function initializeConnection() {
 
     connection.on("Error", (message) => {
         console.error("Error:", message);
+        if (isDuplicateNameError(message)) {
+            const modal = document.getElementById('nameEntryModal');
+            if (modal && !modal.classList.contains('hidden')) {
+                setNameError('modal');
+            } else {
+                setNameError('main');
+            }
+                hasJoinedRoom = false;
+                currentRoomId = '';
+                currentPlayerName = '';
+                enableJoinControls();
+                updateWelcomeHeader();
+                document.getElementById('roomIdDisplay').textContent = '';
+                return;
+        }
+
+        if (typeof message === 'string' && message.toLowerCase().includes('player name is required')) {
+            const modal = document.getElementById('nameEntryModal');
+            if (modal && !modal.classList.contains('hidden')) {
+                setNameError('modal', 'Please enter your name.');
+            } else {
+                setNameError('main', 'Please enter your name.');
+            }
+            return;
+        }
+
         showError(message);
     });
 
@@ -150,6 +176,10 @@ async function initializeConnection() {
             document.getElementById('shareLinkSection').classList.add('hidden');
             updateWelcomeHeader();
             enableJoinControls();
+            
+            // Clear room parameter from URL to prevent rejoining deleted room
+            window.history.replaceState({}, document.title, window.location.pathname);
+            joinedViaLink = false;
         }, 2000);
     });
 
@@ -321,6 +351,76 @@ function showError(message) {
     setTimeout(() => errorDiv.remove(), 5000);
 }
 
+function setNameError(target, message) {
+    const errorText = message || 'Name already taken. Please choose another.';
+    if (target === 'modal') {
+        const modalError = document.getElementById('nameErrorModal');
+        const modalInput = document.getElementById('modalPlayerName');
+        if (modalError && modalInput) {
+            modalError.textContent = errorText;
+            modalError.classList.remove('hidden');
+            modalInput.classList.add('input-error');
+        }
+        return;
+    }
+
+    const mainError = document.getElementById('nameErrorMain');
+    const mainInput = document.getElementById('playerName');
+    if (mainError && mainInput) {
+        mainError.textContent = errorText;
+        mainError.classList.remove('hidden');
+        mainInput.classList.add('input-error');
+    }
+}
+
+function clearNameError(target) {
+    if (target === 'modal') {
+        const modalError = document.getElementById('nameErrorModal');
+        const modalInput = document.getElementById('modalPlayerName');
+        if (modalError && modalInput) {
+            modalError.textContent = '';
+            modalError.classList.add('hidden');
+            modalInput.classList.remove('input-error');
+        }
+        return;
+    }
+
+    const mainError = document.getElementById('nameErrorMain');
+    const mainInput = document.getElementById('playerName');
+    if (mainError && mainInput) {
+        mainError.textContent = '';
+        mainError.classList.add('hidden');
+        mainInput.classList.remove('input-error');
+    }
+}
+
+function getJoinErrorMessage(err) {
+    if (!err) {
+        return '';
+    }
+
+    if (typeof err.message === 'string') {
+        return err.message;
+    }
+
+    if (typeof err.toString === 'function') {
+        return err.toString();
+    }
+
+    return '';
+}
+
+function isDuplicateNameError(message) {
+    if (!message) {
+        return false;
+    }
+
+    const normalizedMessage = message.toLowerCase();
+    return /name\s+already\s+taken/.test(normalizedMessage)
+        || /already\s+taken/.test(normalizedMessage)
+        || /name\s+already/.test(normalizedMessage);
+}
+
 function isNegativeRoomId(roomId) {
     const numeric = Number(roomId);
     return Number.isFinite(numeric) && numeric < 0;
@@ -350,30 +450,51 @@ async function joinRoom() {
     const playerName = document.getElementById('playerName').value.trim();
     const roomId = document.getElementById('roomId').value.trim();
 
+    clearNameError('main');
+    clearNameError('modal');
+
     if (!playerName) {
-        showError("Please enter your name");
-        return;
+        setNameError('main', 'Please enter your name.');
+        return false;
     }
 
     if (!validateRoomId(roomId)) {
-        return;
+        return false;
     }
 
-    currentRoomId = roomId;
-    currentPlayerName = playerName;
-    document.getElementById('roomIdDisplay').textContent = roomId;
 
     try {
         await connection.invoke("JoinRoom", roomId, playerName);
+            // Only set these after successful join
+            currentRoomId = roomId;
+            currentPlayerName = playerName;
+            document.getElementById('roomIdDisplay').textContent = roomId;
         // Mark as joined and disable controls
         hasJoinedRoom = true;
         disableJoinControls();
         updateWelcomeHeader();
         // The PlayerJoined event will handle updating the lobby status and button
+        return true;
     } catch (err) {
         console.error("Error joining room:", err);
-        showError("Failed to join room");
+        // Extract the error message from the server response
+        const errorMessage = getJoinErrorMessage(err) || "Failed to join room";
+        if (isDuplicateNameError(errorMessage)) {
+            const modal = document.getElementById('nameEntryModal');
+            if (modal && !modal.classList.contains('hidden')) {
+                setNameError('modal');
+            } else {
+                setNameError('main');
+            }
+            hasJoinedRoom = false;
+            document.getElementById('leaveRoomBtn').classList.add('hidden');
+            return;
+        }
+
+        showError(errorMessage);
     }
+
+    return false;
 }
 
 function disableJoinControls() {
@@ -772,33 +893,54 @@ function renderSubmittedCards() {
         title.textContent = 'Submitted Cards:';
     }
 
+    // Collect all card groups
+    const groupsData = [];
     Object.entries(gameState.submittedCards).forEach(([playerId, cardIds]) => {
         const player = gameState.players.find(p => p.connectionId === playerId);
-        const groupDiv = document.createElement('div');
-        groupDiv.className = 'submitted-card-group';
-
+        const cards = [];
+        
         if (Array.isArray(cardIds)) {
             cardIds.forEach(cardId => {
                 const card = player?.hand?.find(c => c.id === cardId);
                 if (card) {
-                    const cardDiv = document.createElement('div');
-                    cardDiv.className = 'card white-card mini-card';
-                    cardDiv.textContent = card.text;
-                    groupDiv.appendChild(cardDiv);
+                    cards.push(card);
                 }
             });
         }
-
-        if (groupDiv.children.length > 0) {
-            if (currentPlayer.isCardCzar) {
-                groupDiv.onclick = () => selectWinner(playerId);
-                groupDiv.style.cursor = 'pointer';
-            } else {
-                groupDiv.style.cursor = 'default';
-            }
-
-            container.appendChild(groupDiv);
+        
+        if (cards.length > 0) {
+            groupsData.push({ playerId, cards });
         }
+    });
+
+    // Shuffle groups if Czar to hide player identity
+    if (currentPlayer.isCardCzar) {
+        for (let i = groupsData.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [groupsData[i], groupsData[j]] = [groupsData[j], groupsData[i]];
+        }
+    }
+
+    // Display card groups (shuffled for Czar)
+    groupsData.forEach(({ playerId, cards }) => {
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'submitted-card-group';
+
+        cards.forEach(card => {
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'card white-card mini-card';
+            cardDiv.textContent = card.text;
+            groupDiv.appendChild(cardDiv);
+        });
+
+        if (currentPlayer.isCardCzar) {
+            groupDiv.onclick = () => selectWinner(playerId);
+            groupDiv.style.cursor = 'pointer';
+        } else {
+            groupDiv.style.cursor = 'default';
+        }
+
+        container.appendChild(groupDiv);
     });
 }
 
@@ -877,6 +1019,16 @@ function hideGameOver() {
 document.addEventListener('DOMContentLoaded', () => {
     initializeConnection();
     checkUrlForRoom();
+
+    const mainNameInput = document.getElementById('playerName');
+    if (mainNameInput) {
+        mainNameInput.addEventListener('input', () => clearNameError('main'));
+    }
+
+    const modalNameInput = document.getElementById('modalPlayerName');
+    if (modalNameInput) {
+        modalNameInput.addEventListener('input', () => clearNameError('modal'));
+    }
 });
 
 function checkUrlForRoom() {
@@ -887,9 +1039,6 @@ function checkUrlForRoom() {
         if (isNegativeRoomId(roomId)) {
             joinedViaLink = false;
             document.getElementById('roomId').value = '';
-            document.getElementById('playerName').parentElement.classList.remove('hidden');
-            document.getElementById('roomId').parentElement.classList.remove('hidden');
-            document.getElementById('joinRoomBtn').classList.remove('hidden');
             showError("Room ID cannot be a negative number");
             return;
         }
@@ -903,17 +1052,21 @@ function checkUrlForRoom() {
     }
 }
 
+let modalRoomId = null; // Store the room ID for modal joins
+
 function showNameEntryModal(roomId) {
     const modal = document.getElementById('nameEntryModal');
     const input = document.getElementById('modalPlayerName');
     if (modal && input) {
+        modalRoomId = roomId; // Store the room ID for later use
+        clearNameError('modal');
         modal.classList.remove('hidden');
         input.focus();
         
         // Allow Enter key to submit
         input.onkeypress = (e) => {
             if (e.key === 'Enter') {
-                confirmNameEntry();
+                confirmNameEntryFromModal();
             }
         };
     }
@@ -926,26 +1079,38 @@ function closeNameEntryModal() {
     }
 }
 
-async function confirmNameEntry() {
+function confirmNameEntryFromModal() {
+    confirmNameEntry(modalRoomId);
+}
+
+async function confirmNameEntry(roomId) {
     const nameInput = document.getElementById('modalPlayerName');
-    const roomInput = document.getElementById('roomId');
     const playerName = nameInput.value.trim();
-    const roomId = roomInput.value.trim();
     
     if (!playerName) {
-        showError("Please enter your name");
+        setNameError('modal', 'Please enter your name.');
         return;
     }
-    
-    if (!roomId) {
-        showError("Room ID not found");
-        return;
-    }
+
+    clearNameError('modal');
     
     currentPlayerName = playerName;
     document.getElementById('playerName').value = playerName;
-    closeNameEntryModal();
-    await joinRoom();
+    
+    // If roomId was provided (joining via link), proceed to join
+    // Try to join - if it fails, modal stays open so they can retry with different name
+    if (roomId) {
+        const joinSucceeded = await joinRoom();
+        // Only close modal if join was successful
+        if (joinSucceeded) {
+            closeNameEntryModal();
+            nameInput.value = '';
+            modalRoomId = null;
+        }
+    } else {
+        // Fresh start - modal can close
+        closeNameEntryModal();
+    }
 }
 
 function copyShareLink() {

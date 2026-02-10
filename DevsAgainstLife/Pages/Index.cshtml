@@ -32,7 +32,8 @@
                 </ol>
             </div>
             <div class="input-group">
-                <label for="playerName">Your Name:</label>
+                <div id="nameErrorMain" class="name-error hidden"></div>
+                <label for="playerName">Enter a Unique Username:</label>
                 <input type="text" id="playerName" placeholder="Enter your name" />
             </div>
             <div class="input-group">
@@ -79,13 +80,14 @@
             <div id="nameEntryModal" class="modal-overlay hidden">
                 <div class="modal-content">
                     <h3>Join Room</h3>
-                    <p class="modal-description">Enter your name to join this game room.</p>
+                    <p class="modal-description">Enter your unique name to join this game room.</p>
                     <div class="input-group">
+                        <div id="nameErrorModal" class="name-error hidden"></div>
                         <label for="modalPlayerName">Your Name:</label>
                         <input type="text" id="modalPlayerName" placeholder="Enter your name" />
                     </div>
                     <div class="modal-actions">
-                        <button id="confirmNameBtn" class="btn-primary" onclick="confirmNameEntry()">Join Room</button>
+                        <button id="confirmNameBtn" class="btn-primary" onclick="confirmNameEntryFromModal()">Join Room</button>
                     </div>
                 </div>
             </div>
@@ -137,7 +139,7 @@
 
             <!-- Submitted Cards -->
             <div id="submittedCardsSection" class="submitted-cards-section hidden">
-                <h2 id="submittedCardsTitle">Submitted Cards:</h2>
+                <h2 id="submittedCardsTitle" style="text-align: center;">Submitted Cards:</h2>
                 <div class="submitted-cards-container" id="submittedCardsContainer"></div>
             </div>
 

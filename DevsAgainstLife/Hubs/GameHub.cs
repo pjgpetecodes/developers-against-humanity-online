@@ -95,7 +95,7 @@ public class GameHub : Hub
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error joining room");
-            await Clients.Caller.SendAsync("Error", ex.Message);
+            throw new HubException(ex.Message);
         }
     }
 
