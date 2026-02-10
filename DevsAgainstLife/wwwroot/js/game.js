@@ -63,9 +63,9 @@ async function initializeConnection() {
         if (state.creatorConnectionId) {
             roomCreatorId = state.creatorConnectionId;
             showRoundsSelector();
-            updateShareLink();
         }
 
+        updateShareLink();
         updateRoundDisplay();
         updateWelcomeHeader();
         
