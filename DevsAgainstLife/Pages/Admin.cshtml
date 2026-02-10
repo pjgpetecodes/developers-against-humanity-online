@@ -338,6 +338,16 @@
             }
         });
 
+        function hideStatusMessageAfterDelay(statusElement, delay = 3000) {
+            setTimeout(() => {
+                statusElement.classList.add('fade-out');
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                    statusElement.classList.remove('fade-out');
+                }, 500);
+            }, delay);
+        }
+
         async function verifyAdminKey() {
             const key = adminKeyInput.value.trim();
             const keyStatus = document.getElementById('keyStatus');
@@ -348,6 +358,7 @@
                 keyStatus.textContent = 'Please enter an admin key';
                 keyStatus.className = 'status-message error';
                 keyStatus.style.display = 'block';
+                hideStatusMessageAfterDelay(keyStatus);
                 return;
             }
 
@@ -362,6 +373,7 @@
                     }
                     keyStatus.className = 'status-message error';
                     keyStatus.style.display = 'block';
+                    hideStatusMessageAfterDelay(keyStatus);
                     adminKeyVerified = false;
                     return;
                 }
@@ -379,6 +391,7 @@
                 keyStatus.textContent = 'Error verifying key';
                 keyStatus.className = 'status-message error';
                 keyStatus.style.display = 'block';
+                hideStatusMessageAfterDelay(keyStatus);
                 console.error(err);
             }
         }
@@ -464,11 +477,13 @@
                 status.textContent = `Cleared ${result.cleared} room(s).`;
                 status.className = 'status-message success';
                 status.style.display = 'block';
+                hideStatusMessageAfterDelay(status);
                 loadRooms();
             } catch (err) {
                 status.textContent = err.message || 'Failed to clear rooms.';
                 status.className = 'status-message error';
                 status.style.display = 'block';
+                hideStatusMessageAfterDelay(status);
             }
         }
 
