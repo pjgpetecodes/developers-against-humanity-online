@@ -387,3 +387,6 @@ Microsoft Teams
 GitHub Copilot hallunications
 My prompt-fu sucks
 We've had a new MD more often than a payrise
+Breaking Changes in SDKs
+I needed a nap
+Vague requirements
