@@ -506,7 +506,7 @@ function showError(message) {
     const errorDiv = document.createElement('div');
     errorDiv.className = 'error-message';
     errorDiv.textContent = message;
-    document.querySelector('.container').prepend(errorDiv);
+    document.getElementById('notificationArea').appendChild(errorDiv);
     setTimeout(() => errorDiv.remove(), 5000);
 }
 
