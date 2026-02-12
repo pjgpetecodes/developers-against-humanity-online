@@ -19,6 +19,7 @@ public class GameRoom
     public bool IsDeciderRound { get; set; } = false;
     public HashSet<string> RemovedPlayerConnectionIds { get; set; } = new(); // Players who left mid-game and cannot rejoin
     public string? PlayerWhoLeftName { get; set; } // Name of current player who left mid-game (for waiting state)
+    public bool IsWaitingForPlayerReturn { get; set; } = false; // Whether room is locked waiting for specific player
 }
 
 public enum GameState

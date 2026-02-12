@@ -180,11 +180,13 @@ async function initializeConnection() {
             // Show creator modal with action buttons
             console.log("Showing creator modal");
             const nameEl = document.getElementById('leftPlayerNameCreator');
+            const waitNameEl = document.getElementById('waitPlayerName');
             const modalEl = document.getElementById('playerLeftCreatorModal');
             console.log("Name element found:", !!nameEl);
             console.log("Modal element found:", !!modalEl);
             
             if (nameEl) nameEl.textContent = playerName;
+            if (waitNameEl) waitNameEl.textContent = playerName;
             if (modalEl) {
                 modalEl.classList.remove('hidden');
                 console.log("Modal classes:", modalEl.className);
@@ -259,6 +261,45 @@ async function initializeConnection() {
         document.getElementById('playerLeftModal').classList.add('hidden');
         document.getElementById('playerLeftCreatorModal').classList.add('hidden');
         showStatus("Game restarted!");
+    });
+
+    connection.on("NotEnoughPlayersAfterLeave", (leftPlayerName, remainingPlayerCount, creatorConnectionId) => {
+        console.log("Not enough players left:", leftPlayerName, "Remaining:", remainingPlayerCount);
+        
+        if (connection.connectionId === creatorConnectionId) {
+            // Show creator modal with wait/quit options
+            document.getElementById('leftPlayerNameCreatorNotEnough').textContent = leftPlayerName;
+            document.getElementById('remainingPlayerCountCreator').textContent = remainingPlayerCount;
+            document.getElementById('waitPlayerName2').textContent = leftPlayerName;
+            document.getElementById('notEnoughPlayersCreatorModal').classList.remove('hidden');
+        } else {
+            // Show non-creator modal (waiting message)
+            document.getElementById('leftPlayerNameNotEnough').textContent = leftPlayerName;
+            document.getElementById('remainingPlayerCount').textContent = remainingPlayerCount;
+            document.getElementById('notEnoughPlayersModal').classList.remove('hidden');
+        }
+    });
+
+    connection.on("ReturningToLobby", () => {
+        console.log("Returning to lobby to wait for more players");
+        closeAllModals();
+        document.getElementById('lobby').style.display = 'block';
+        document.getElementById('gameBoard').style.display = 'none';
+        showStatus("Returning to lobby to wait for more players...");
+    });
+
+    connection.on("GameQuit", (message) => {
+        console.log("Game quit:", message);
+        closeAllModals();
+        showError(message);
+        // Reset state and return to join screen
+        hasJoinedRoom = false;
+        currentRoomId = '';
+        currentPlayerName = '';
+        roomCreatorId = '';
+        enableJoinControls();
+        document.getElementById('lobby').style.display = 'block';
+        document.getElementById('gameBoard').style.display = 'none';
     });
 
     connection.on("RoomDeleted", (message) => {
@@ -794,6 +835,37 @@ async function handleRestartGame() {
         console.error("Error restarting game:", err);
         showError(err.message || "Failed to restart game");
     }
+}
+
+async function handleWaitForMorePlayers() {
+    if (!currentRoomId) return;
+
+    try {
+        await connection.invoke("WaitForMorePlayers", currentRoomId);
+        console.log("Waiting for more players to join");
+    } catch (err) {
+        console.error("Error waiting for more players:", err);
+        showError(err.message || "Failed to wait for more players");
+    }
+}
+
+async function handleQuitGame() {
+    if (!currentRoomId) return;
+
+    try {
+        await connection.invoke("QuitGame", currentRoomId);
+        console.log("Game quit by room creator");
+    } catch (err) {
+        console.error("Error quitting game:", err);
+        showError(err.message || "Failed to quit game");
+    }
+}
+
+function closeAllModals() {
+    document.getElementById('playerLeftModal').classList.add('hidden');
+    document.getElementById('playerLeftCreatorModal').classList.add('hidden');
+    document.getElementById('notEnoughPlayersModal').classList.add('hidden');
+    document.getElementById('notEnoughPlayersCreatorModal').classList.add('hidden');
 }
 
 async function startGame() {

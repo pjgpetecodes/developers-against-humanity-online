@@ -185,9 +185,45 @@
                     What would you like to do?
                 </p>
                 <div class="modal-actions-creator">
-                    <button id="waitBtn" class="btn-secondary" onclick="handleWait()">Wait for Return</button>
+                    <button id="waitBtn" class="btn-secondary" onclick="handleWait()">Wait for <strong id="waitPlayerName"></strong> to Return</button>
                     <button id="restartRoundBtn" class="btn-secondary" onclick="handleRestartRound()">Restart Round</button>
                     <button id="restartGameBtn" class="btn-secondary" onclick="handleRestartGame()">Restart Game</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Not Enough Players Modal (for non-creators) -->
+        <div id="notEnoughPlayersModal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <h3>Not Enough Players</h3>
+                <p class="modal-description">
+                    <strong id="leftPlayerNameNotEnough"></strong> has left the game.
+                </p>
+                <p class="modal-description">
+                    Only <strong id="remainingPlayerCount">0</strong> players remain. You need at least 3 to continue.
+                </p>
+                <p class="modal-description" id="creatorDecidingMessage">
+                    The room creator is deciding what to do...
+                </p>
+            </div>
+        </div>
+
+        <!-- Not Enough Players Creator Modal -->
+        <div id="notEnoughPlayersCreatorModal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <h3>Not Enough Players!</h3>
+                <p class="modal-description">
+                    <strong id="leftPlayerNameCreatorNotEnough"></strong> has left the game.
+                </p>
+                <p class="modal-description">
+                    Only <strong id="remainingPlayerCountCreator">0</strong> players remain. You need at least 3 to play.
+                </p>
+                <p class="modal-description">
+                    What would you like to do?
+                </p>
+                <div class="modal-actions-creator">
+                    <button id="waitForMoreBtn" class="btn-secondary" onclick="handleWaitForMorePlayers()">Wait for <strong id="waitPlayerName2"></strong> to Return</button>
+                    <button id="quitGameBtn" class="btn-danger" onclick="handleQuitGame()">Quit Game</button>
                 </div>
             </div>
         </div>
