@@ -1076,6 +1076,12 @@ function renderPlayers() {
             currentPlayer.isCardCzar = player.isCardCzar;
         }
     });
+
+    updateCzarTheme();
+}
+
+function updateCzarTheme() {
+    document.body.classList.toggle('czar-active', currentPlayer.isCardCzar);
 }
 
 function renderHand() {
@@ -1168,6 +1174,7 @@ function updateGameStateUI() {
             if (winner) {
                 showWinnerDisplay(winner.name);
             }
+            renderWinningBlackCard(gameState.winningPlayerId);
             showNextRoundButton();
             break;
         case 4: // GameOver
@@ -1267,6 +1274,58 @@ function updateSubmitButtonState() {
 
 function hideSubmittedCards() {
     document.getElementById('submittedCardsSection').classList.add('hidden');
+}
+
+function renderWinningBlackCard(winnerId) {
+    if (!gameState?.currentBlackCard) return;
+
+    const blackCardEl = document.getElementById('blackCard');
+    if (!blackCardEl) return;
+
+    const winningCardIds = gameState.submittedCards?.[winnerId];
+    const winner = gameState.players.find(p => p.connectionId === winnerId);
+    const answers = [];
+
+    if (winner && Array.isArray(winningCardIds)) {
+        winningCardIds.forEach(cardId => {
+            const card = winner.hand?.find(c => c.id === cardId);
+            if (card) answers.push(card.text);
+        });
+    }
+
+    const text = gameState.currentBlackCard.text || '';
+    const parts = text.split(/_{2,}/);
+    const escapeHtml = (value) => value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    let html = '';
+
+    if (parts.length > 1) {
+        parts.forEach((part, index) => {
+            let normalizedPart = part;
+            if (index > 0) {
+                const trimmedLeading = part.replace(/^\s+/, '');
+                if (/^[.,!?]/.test(trimmedLeading)) {
+                    normalizedPart = trimmedLeading;
+                } else {
+                    normalizedPart = part.replace(/^\s+/, ' ');
+                }
+            }
+            html += escapeHtml(normalizedPart);
+            if (index < answers.length) {
+                html += `<span class="black-card-answer">${escapeHtml(answers[index])}</span>`;
+            }
+        });
+    } else if (answers.length > 0) {
+        html += escapeHtml(text);
+        html += ` <span class="black-card-answer">${escapeHtml(answers.join(' / '))}</span>`;
+    } else {
+        html += escapeHtml(text);
+    }
+
+    blackCardEl.innerHTML = `<span class="black-card-text">${html}</span>`;
 }
 
 function showWinnerDisplay(winnerName) {
