@@ -1116,6 +1116,7 @@ function renderHand() {
         const cardDiv = document.createElement('div');
         cardDiv.className = 'card white-card mini-card';
         cardDiv.textContent = card.text;
+        cardDiv.dataset.cardId = card.id;
         
         if (currentPlayer.selectedCards.includes(card.id)) {
             cardDiv.classList.add('selected');
@@ -1124,6 +1125,7 @@ function renderHand() {
         if (currentPlayer.isCardCzar || currentPlayer.hasSubmitted) {
             cardDiv.classList.add('submitted');
         } else {
+            // Submit card on click
             cardDiv.onclick = () => submitCard(card.id);
         }
         
