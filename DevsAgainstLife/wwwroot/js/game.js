@@ -1286,14 +1286,42 @@ function showGameOver(winnerName) {
     p.style.margin = '20px 0';
     p.textContent = `${winnerName} is the ultimate winner!`;
     
-    const button = document.createElement('button');
-    button.className = 'btn-primary';
-    button.textContent = 'Play Again';
-    button.onclick = () => location.reload();
+    // Check if current player is the room creator
+    const isRoomCreator = connection && connection.connectionId === roomCreatorId;
+    
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.gap = '15px';
+    buttonContainer.style.justifyContent = 'center';
+    buttonContainer.style.marginTop = '20px';
+    
+    if (isRoomCreator) {
+        // Room creator sees both options
+        const playAgainButton = document.createElement('button');
+        playAgainButton.className = 'btn-primary';
+        playAgainButton.textContent = 'Play Again';
+        playAgainButton.onclick = () => handleRestartGame();
+        
+        const leaveButton = document.createElement('button');
+        leaveButton.className = 'btn-danger';
+        leaveButton.textContent = 'Leave Room';
+        leaveButton.onclick = () => leaveRoom();
+        
+        buttonContainer.appendChild(playAgainButton);
+        buttonContainer.appendChild(leaveButton);
+    } else {
+        // Non-creators see a single button
+        const button = document.createElement('button');
+        button.className = 'btn-primary';
+        button.textContent = 'Return to Lobby';
+        button.onclick = () => location.reload();
+        
+        buttonContainer.appendChild(button);
+    }
     
     display.appendChild(h2);
     display.appendChild(p);
-    display.appendChild(button);
+    display.appendChild(buttonContainer);
 }
 
 function hideGameOver() {

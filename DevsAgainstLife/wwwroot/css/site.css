@@ -347,6 +347,26 @@ button:disabled {
   margin: 15px 0;
 }
 
+.cards-display-wrapper {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin: 15px 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.cards-display-wrapper .black-card-container {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.cards-display-wrapper .submitted-cards-section {
+  flex: 1 1 auto;
+  min-width: 300px;
+  margin: 0;
+}
+
 .card {
   width: 240px;
   height: 300px;
