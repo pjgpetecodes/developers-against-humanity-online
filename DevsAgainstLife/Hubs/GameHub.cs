@@ -41,8 +41,8 @@ public class GameHub : Hub
             roomId = NormalizeRoomId(roomId);
             _logger.LogInformation($"[CreateRoom] Normalized room ID: {roomId}");
             
-            var room = _gameService.CreateRoom(roomId);
-            _logger.LogInformation($"[CreateRoom] Room created in service");
+            var room = _gameService.CreateRoom(roomId, creatorConnectionId: Context.ConnectionId);
+            _logger.LogInformation($"[CreateRoom] Room created in service with creator: {Context.ConnectionId}");
             
             // Add the creator as the first player in the room
             var player = _gameService.AddPlayer(roomId, Context.ConnectionId, playerName);
@@ -118,8 +118,8 @@ public class GameHub : Hub
                 string demoRoomId = GenerateRoomId();
                 demoRoomId = NormalizeRoomId(demoRoomId);
                 
-                var demoRoom = _gameService.CreateRoom(demoRoomId);
-                demoRoom.CreatorConnectionId = Context.ConnectionId; // Set the joining player as room creator
+                var demoRoom = _gameService.CreateRoom(demoRoomId, creatorConnectionId: Context.ConnectionId);
+                // Demo room creator connection ID set during creation
                 
                 // Add the main player
                 var mainPlayer = _gameService.AddPlayer(demoRoomId, Context.ConnectionId, playerName);
@@ -349,65 +349,90 @@ public class GameHub : Hub
             var room = _gameService.GetRoom(roomId);
             if (room != null)
             {
+                var playerSnapshot = string.Join(", ", room.Players.Select(p => $"{p.Name}:{p.ConnectionId}"));
+                _logger.LogInformation($"[LeaveRoom] roomId: {roomId}, contextConnectionId: {Context.ConnectionId}, creatorConnectionId: {room.CreatorConnectionId}, players: [{playerSnapshot}]");
                 var player = room.Players.FirstOrDefault(p => p.ConnectionId == Context.ConnectionId);
                 if (player != null)
                 {
-                    // Check if leaving mid-game
-                    bool leftMidGame = room.State != GameState.Lobby;
+                    // Check if the leaving player is the room creator
+                    bool isRoomCreator = player.ConnectionId == room.CreatorConnectionId;
+                    _logger.LogInformation($"[LeaveRoom] leavingPlayer: {player.Name}, leavingConnectionId: {player.ConnectionId}, isRoomCreator: {isRoomCreator}");
                     
-                    if (leftMidGame)
+                    if (isRoomCreator)
                     {
-                        // Mark player as left - wait for room creator's decision
-                        room.PlayerWhoLeftName = player.Name;
-                        room.IsWaitingForPlayerReturn = true; // Lock room to new players
+                        // Room creator left - end game for everyone
+                        _logger.LogInformation($"Room creator {player.Name} left room {roomId} - ending game");
                         
-                        // Don't remove player from room - keep their hand and state for rejoin
-                        // Just remove them from the SignalR group
-                        await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomId);
+                        // Notify all players that room creator left and game is ended
+                        await Clients.Group(roomId).SendAsync("RoomCreatorLeft", player.Name);
                         
-                        // Check if enough players remain
-                        int remainingPlayers = room.Players.Count;
-                        bool hasEnoughPlayers = remainingPlayers >= 3; // MIN_PLAYERS_TO_START
-                        
-                        if (hasEnoughPlayers)
+                        // Remove all players and delete the room
+                        foreach (var p in room.Players)
                         {
-                            // Notify all players that someone left mid-game
-                            await Clients.Group(roomId).SendAsync("PlayerLeftMidGame", 
-                                player.Name, 
-                                Context.ConnectionId, 
-                                room.CreatorConnectionId);
+                            await Groups.RemoveFromGroupAsync(p.ConnectionId, roomId);
                         }
-                        else
-                        {
-                            // Not enough players - different flow
-                            await Clients.Group(roomId).SendAsync("NotEnoughPlayersAfterLeave", 
-                                player.Name, 
-                                remainingPlayers, 
-                                room.CreatorConnectionId);
-                        }
+                        
+                        _gameService.DeleteRoom(roomId);
                     }
                     else
                     {
-                        // Normal lobby leave
-                        _gameService.RemovePlayer(roomId, Context.ConnectionId);
-                        var playerNames = room.Players.Where(p => p.ConnectionId != Context.ConnectionId).Select(p => p.Name).ToList();
-                        var newPlayerCount = room.Players.Count - 1;
+                        // Check if leaving mid-game
+                        bool leftMidGame = room.State != GameState.Lobby;
                         
-                        await Clients.Group(roomId).SendAsync("PlayerLeft", player.Name, newPlayerCount, playerNames);
-                        await Clients.Group(roomId).SendAsync("GameStateUpdated", room);
-                        
-                        // Check if this was a demo room (all remaining players are test players)
-                        if (room.Players.All(p => p.ConnectionId.StartsWith("test-")))
+                        if (leftMidGame)
                         {
-                            _logger.LogInformation($"Deleting demo room {roomId} - no real players remaining");
-                            _gameService.DeleteRoom(roomId);
+                            // Mark player as left - wait for room creator's decision
+                            room.PlayerWhoLeftName = player.Name;
+                            room.IsWaitingForPlayerReturn = true; // Lock room to new players
+                            
+                            // Don't remove player from room - keep their hand and state for rejoin
+                            // Just remove them from the SignalR group
+                            await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomId);
+                            
+                            // Check if enough players remain
+                            int remainingPlayers = room.Players.Count;
+                            bool hasEnoughPlayers = remainingPlayers >= 3; // MIN_PLAYERS_TO_START
+                            
+                            if (hasEnoughPlayers)
+                            {
+                                // Notify all players that someone left mid-game
+                                await Clients.Group(roomId).SendAsync("PlayerLeftMidGame", 
+                                    player.Name, 
+                                    Context.ConnectionId, 
+                                    room.CreatorConnectionId);
+                            }
+                            else
+                            {
+                                // Not enough players - different flow
+                                await Clients.Group(roomId).SendAsync("NotEnoughPlayersAfterLeave", 
+                                    player.Name, 
+                                    remainingPlayers, 
+                                    room.CreatorConnectionId);
+                            }
                         }
+                        else
+                        {
+                            // Normal lobby leave
+                            _gameService.RemovePlayer(roomId, Context.ConnectionId);
+                            var playerNames = room.Players.Where(p => p.ConnectionId != Context.ConnectionId).Select(p => p.Name).ToList();
+                            var newPlayerCount = room.Players.Count - 1;
+                            
+                            await Clients.Group(roomId).SendAsync("PlayerLeft", player.Name, newPlayerCount, playerNames);
+                            await Clients.Group(roomId).SendAsync("GameStateUpdated", room);
+                            
+                            // Check if this was a demo room (all remaining players are test players)
+                            if (room.Players.All(p => p.ConnectionId.StartsWith("test-")))
+                            {
+                                _logger.LogInformation($"Deleting demo room {roomId} - no real players remaining");
+                                _gameService.DeleteRoom(roomId);
+                            }
+                        }
+                        
+                        // Remove from group
+                        await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomId);
+                        
+                        _logger.LogInformation($"Player {player.Name} left room {roomId}, mid-game: {leftMidGame}");
                     }
-                    
-                    // Remove from group
-                    await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomId);
-                    
-                    _logger.LogInformation($"Player {player.Name} left room {roomId}, mid-game: {leftMidGame}");
                 }
             }
         }
@@ -625,6 +650,22 @@ public class GameHub : Hub
                 if (player != null)
                 {
                     _logger.LogInformation($"Found player {player.Name} in room {room.RoomId}, game state: {room.State}");
+
+                    var isRoomCreator = player.ConnectionId == room.CreatorConnectionId;
+                    if (isRoomCreator)
+                    {
+                        _logger.LogInformation($"Room creator {player.Name} disconnected from room {room.RoomId} - ending game");
+
+                        await Clients.Group(room.RoomId).SendAsync("RoomCreatorLeft", player.Name);
+
+                        foreach (var p in room.Players)
+                        {
+                            await Groups.RemoveFromGroupAsync(p.ConnectionId, room.RoomId);
+                        }
+
+                        _gameService.DeleteRoom(room.RoomId);
+                        break;
+                    }
                     
                     // Check if they left mid-game
                     bool leftMidGame = room.State != GameState.Lobby;

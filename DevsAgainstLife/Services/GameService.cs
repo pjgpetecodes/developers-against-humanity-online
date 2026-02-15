@@ -4,7 +4,7 @@ namespace DevsAgainstLife.Services;
 
 public interface IGameService
 {
-    GameRoom CreateRoom(string roomId, int? totalRounds = null);
+    GameRoom CreateRoom(string roomId, int? totalRounds = null, string? creatorConnectionId = null);
     GameRoom? GetRoom(string roomId);
     Player AddPlayer(string roomId, string connectionId, string playerName, bool allowRejoin = false);
     void RemovePlayer(string roomId, string connectionId);
@@ -46,10 +46,10 @@ public class GameService : IGameService
         return trimmed;
     }
 
-    public GameRoom CreateRoom(string roomId, int? totalRounds = null)
+    public GameRoom CreateRoom(string roomId, int? totalRounds = null, string? creatorConnectionId = null)
     {
         roomId = NormalizeRoomId(roomId);
-        _logger.LogInformation($"[GameService.CreateRoom] Creating room: {roomId}");
+        _logger.LogInformation($"[GameService.CreateRoom] Creating room: {roomId}, creatorConnectionId: {creatorConnectionId}");
 
         if (_rooms.ContainsKey(roomId))
         {
@@ -57,7 +57,7 @@ public class GameService : IGameService
             return _rooms[roomId];
         }
 
-        var room = new GameRoom { RoomId = roomId, CreatorConnectionId = null };
+        var room = new GameRoom { RoomId = roomId, CreatorConnectionId = creatorConnectionId };
         if (totalRounds.HasValue && totalRounds.Value > 0)
         {
             room.TotalRounds = totalRounds.Value;
@@ -107,9 +107,14 @@ public class GameService : IGameService
                 }
                 
                 // Game in progress - allow reconnect
+                var wasCreator = room.CreatorConnectionId == existingPlayer.ConnectionId;
                 existingPlayer.ConnectionId = connectionId;
+                if (wasCreator)
+                {
+                    room.CreatorConnectionId = connectionId;
+                }
                 MarkActivity(room);
-                _logger.LogInformation($"[GameService.AddPlayer] Player {playerName} reconnected to room {roomId}");
+                _logger.LogInformation($"[GameService.AddPlayer] Player {playerName} reconnected to room {roomId}, wasCreator: {wasCreator}, newCreatorConnectionId: {room.CreatorConnectionId}");
                 return existingPlayer;
             }
         }

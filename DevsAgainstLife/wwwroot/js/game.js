@@ -68,6 +68,59 @@ async function initializeConnection() {
         updateWelcomeHeader();
     });
 
+    connection.on("RoomCreatorLeft", (creatorName) => {
+        console.log("Room creator left:", creatorName);
+        showError(`${creatorName} (room creator) left the game. Returning to lobby...`);
+        
+        // Reset game state
+        hasJoinedRoom = false;
+        currentRoomId = null;
+        gameState = null;
+        roundNumber = 0;
+        totalRounds = 7;
+        
+        // Hide game board and show lobby
+        const lobbyEl = document.getElementById('lobby');
+        const gameBoardEl = document.getElementById('gameBoard');
+        const headerEl = document.getElementById('gameHeader');
+        const logoEl = document.getElementById('gameLogo');
+
+        if (gameBoardEl) {
+            gameBoardEl.classList.add('hidden');
+            gameBoardEl.style.display = 'none';
+        }
+
+        if (lobbyEl) {
+            lobbyEl.classList.remove('hidden');
+            lobbyEl.style.display = 'block';
+        }
+
+        if (headerEl) headerEl.style.display = 'block';
+        if (logoEl) logoEl.classList.add('hidden');
+        document.body.classList.remove('in-game');
+
+        hideGameOver();
+        
+        // Reset join controls
+        enableJoinControls();
+        document.getElementById('leaveRoomBtn').classList.add('hidden');
+        updateWelcomeHeader();
+
+        const lobbyStatus = document.getElementById('lobbyStatus');
+        if (lobbyStatus) {
+            lobbyStatus.innerHTML = '';
+            lobbyStatus.classList.add('hidden');
+        }
+
+        const shareLinkSection = document.getElementById('shareLinkSection');
+        if (shareLinkSection) {
+            shareLinkSection.classList.add('hidden');
+        }
+        
+        // Clear any notifications
+        document.getElementById('notificationArea').innerHTML = '';
+    });
+
     connection.on("GameStateUpdated", (state) => {
         console.log("Game state updated:", state);
         gameState = state;
@@ -538,6 +591,9 @@ function updateLobbyStatus(playerCount, playerNames) {
     }
     
     const lobbyStatus = document.getElementById('lobbyStatus');
+    if (lobbyStatus) {
+        lobbyStatus.classList.remove('hidden');
+    }
     
     // Get all existing notifications before clearing
     const notifications = Array.from(lobbyStatus.querySelectorAll('.player-join-notification'));
@@ -552,7 +608,9 @@ function updateLobbyStatus(playerCount, playerNames) {
 }
 
 function showLobbyStatus(message) {
-    document.getElementById('lobbyStatus').innerHTML = `<p>${message}</p>`;
+    const lobbyStatus = document.getElementById('lobbyStatus');
+    lobbyStatus.innerHTML = `<p>${message}</p>`;
+    lobbyStatus.classList.remove('hidden');
 }
 
 function showPlayerJoinedMessage(playerName) {
