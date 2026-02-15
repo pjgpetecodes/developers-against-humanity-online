@@ -39,8 +39,10 @@
         <!-- Lobby Screen -->
         <div id="lobby">
             <div class="how-to-play-box">
-                <h2 class="how-to-play-title">How to Play:</h2>
-                <ol class="how-to-play-list">
+                <button class="how-to-play-toggle" onclick="toggleHowToPlay()" id="howToPlayBtn">
+                    <span class="toggle-icon">▼</span> How to Play:
+                </button>
+                <ol class="how-to-play-list" id="howToPlayContent">
                     <li>Enter your name</li>
                     <li>Create a new room or join an existing room with a code</li>
                     <li>Wait for at least 3 players to join</li>

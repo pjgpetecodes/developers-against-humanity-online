@@ -512,7 +512,7 @@ async function extendRoomIdle() {
 function updateLobbyStatus(playerCount, playerNames) {
     const remaining = Math.max(0, MIN_PLAYERS_TO_START - playerCount);
     
-    let message = `<p><strong>Players in room: ${playerCount}</strong></p>`;
+    let message = `<h3>👥 Players in room: ${playerCount}</h3>`;
     
     // Show list of player names
     if (playerNames && playerNames.length > 0) {
@@ -868,8 +868,7 @@ async function setRounds(rounds) {
         totalRounds = rounds;
         hasPromptedRounds = true;
         closeRoundsModal();
-        showRoundsSelector();
-        updateRoundDisplay();
+        updateWelcomeHeader();
     } catch (err) {
         console.error("Error setting rounds:", err);
         showError(err.message || "Failed to set rounds");
@@ -1629,6 +1628,7 @@ function hideGameOver() {
 document.addEventListener('DOMContentLoaded', () => {
     initializeConnection();
     checkUrlForRoom();
+    initializeHowToPlayCollapse();
 
     const mainNameInput = document.getElementById('playerName');
     if (mainNameInput) {
@@ -1793,10 +1793,16 @@ function updateWelcomeHeader() {
         const playerCount = gameState?.players?.length || 0;
         const playerNameToShow = currentPlayerName || document.getElementById('playerName').value.trim();
         
-        let html = `Welcome <strong>${playerNameToShow}</strong> to Room <strong>${currentRoomId}</strong> | Players in room: <strong>${playerCount}</strong>`;
+        let html = `<div class="welcome-line-1">Welcome <strong>${playerNameToShow}</strong> to Room <strong>${currentRoomId}</strong></div>`;
+        html += `<div class="welcome-line-2">Players in room: <strong>${playerCount}</strong>`;
         
-        // Add round info if game is active
-        if (gameState && gameState.state !== 0) { // Not in lobby
+        // Add round info based on game state
+        if (gameState && gameState.state === 0) { // In lobby
+            html += ` | <strong>${totalRounds}</strong> rounds`;
+        }
+        html += `</div>`;
+        
+        if (gameState && gameState.state !== 0) { // Game is active
             if (gameState.isDeciderRound) {
                 html += `<div class="round-info">⚡ DECIDER ROUND ⚡</div>`;
             } else {
@@ -2223,5 +2229,38 @@ function updateDemoPlayerSwitcherPanel() {
     });
 }
 
+// How to Play Toggle Functions
+function initializeHowToPlayCollapse() {
+    // Collapse by default on all screen sizes
+    collapseHowToPlay();
+}
 
+function toggleHowToPlay() {
+    const btn = document.getElementById('howToPlayBtn');
+    const content = document.getElementById('howToPlayContent');
+    
+    if (btn && content) {
+        btn.classList.toggle('collapsed');
+        content.classList.toggle('collapsed');
+    }
+}
 
+function collapseHowToPlay() {
+    const btn = document.getElementById('howToPlayBtn');
+    const content = document.getElementById('howToPlayContent');
+    
+    if (btn && content) {
+        btn.classList.add('collapsed');
+        content.classList.add('collapsed');
+    }
+}
+
+function expandHowToPlay() {
+    const btn = document.getElementById('howToPlayBtn');
+    const content = document.getElementById('howToPlayContent');
+    
+    if (btn && content) {
+        btn.classList.remove('collapsed');
+        content.classList.remove('collapsed');
+    }
+}
