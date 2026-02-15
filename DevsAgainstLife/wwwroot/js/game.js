@@ -378,6 +378,9 @@ async function initializeConnection() {
             lobbyStatus.innerHTML = '';
         }
         
+        // Hide share link section
+        document.getElementById('shareLinkSection').classList.add('hidden');
+        
         // Update welcome header to hide it
         updateWelcomeHeader();
     });

@@ -1085,3 +1085,29 @@ button:disabled {
 .waiting-cards-text {
   color: #fff;
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  #lobby {
+    margin: 20px auto;
+    padding: 20px;
+    max-width: 95%;
+  }
+
+  .share-link-container {
+    flex-direction: column;
+    gap: 10px;
+    padding: 8px;
+  }
+
+  .share-link-input {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: auto;
+  }
+
+  .btn-copy {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+}
